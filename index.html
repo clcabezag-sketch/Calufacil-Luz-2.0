@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cálculo de Luz - Los Maestros 134</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: #eef3f0;
+    color: #1a2e25;
+    font-size: 20px;
+    line-height: 1.45;
+    padding: 16px;
+  }
+  .wrap { max-width: 580px; margin: 0 auto; }
+  header {
+    background: #1a5c38;
+    color: #fff;
+    border-radius: 20px;
+    padding: 24px 20px;
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  header h1 { margin: 0; font-size: 28px; }
+  header p { margin: 6px 0 0; font-size: 17px; opacity: .9; }
+  .step {
+    background: #fff;
+    border-radius: 20px;
+    padding: 22px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  .step h2 { margin: 0 0 4px; font-size: 22px; color: #1a5c38; display:flex; align-items:center; gap:10px; }
+  .num {
+    background:#1a5c38; color:#fff; width:38px; height:38px; min-width:38px;
+    border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:700;
+  }
+  .hint { font-size: 16px; color: #6b7a72; margin: 0 0 16px; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; font-size: 18px; }
+  input[type=number] {
+    width: 100%; font-size: 26px; padding: 16px;
+    border: 2px solid #cfd8d3; border-radius: 14px;
+    text-align: center; background: #fbfdfc;
+  }
+  input[type=number]:focus { outline: none; border-color: #1a5c38; background: #fff; }
+
+  .drop {
+    border: 3px dashed #1a5c38; border-radius: 16px;
+    padding: 26px 16px; text-align:center; background:#f3f8f5;
+    cursor:pointer; font-size:18px; color:#1a5c38; font-weight:600;
+  }
+  .drop.drag { background:#e1efe7; }
+  .file-btn {
+    display:block; width:100%; background:#2e7d52; color:#fff;
+    border:none; border-radius:14px; padding:18px; font-size:19px;
+    font-weight:700; margin-top:12px; cursor:pointer;
+  }
+  .file-btn:active { background:#1a5c38; }
+  input[type=file]{ display:none; }
+
+  .preview { margin-top:14px; text-align:center; }
+  .preview img { max-width:100%; border-radius:14px; border:2px solid #cfd8d3; }
+
+  .ocr-status {
+    font-size:16px; color:#1a5c38; margin-top:12px; text-align:center;
+    background:#e8f3ec; border-radius:12px; padding:12px; display:none;
+  }
+  .ocr-status.show { display:block; }
+
+  .btn {
+    display: block; width: 100%;
+    background: #1a5c38; color: #fff; border: none;
+    border-radius: 16px; padding: 24px; font-size: 26px;
+    font-weight: 800; margin-top: 6px; cursor: pointer;
+  }
+  .btn:active { background: #134429; }
+  .btn-pdf { background:#b8741a; margin-top:14px; }
+  .btn-pdf:active { background:#8f5a14; }
+  .btn-clear {
+    background:#fff; color:#1a5c38; border:2px solid #1a5c38;
+    font-size:19px; padding:16px; margin-top:12px;
+  }
+
+  .result { display:none; }
+  .result.show { display:block; }
+  .pago {
+    background:#f3f8f5; border:2px solid #1a5c38; border-radius:16px;
+    padding:22px; margin-bottom:14px; text-align:center;
+  }
+  .pago .nombre { font-size:21px; font-weight:700; color:#1a5c38; }
+  .pago .monto { font-size:48px; font-weight:800; margin:6px 0; }
+  .pago .extra { font-size:18px; color:#4a5a52; }
+  .total-line { text-align:center; font-size:19px; color:#4a5a52; margin-top:8px; }
+  .total-line b { color:#1a2e25; }
+
+  .err {
+    background:#fdecec; color:#a12121; border-radius:12px;
+    padding:14px; font-size:17px; text-align:center; margin-top:12px; display:none;
+  }
+  .err.show { display:block; }
+  details { margin-top:12px; font-size:16px; color:#4a5a52; }
+  summary { cursor:pointer; color:#1a5c38; font-weight:600; }
+  .mini { width:100%; border-collapse:collapse; font-size:16px; margin-top:8px;}
+  .mini td { padding:5px 8px; border-bottom:1px solid #eef2f0; }
+  .mini td:last-child { text-align:right; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Cálculo de Luz</h1>
+    <p>Los Maestros 134 · Recibo Ensa</p>
+  </header>
+
+  <!-- PASO 1: RECIBO -->
+  <div class="step">
+    <h2><span class="num">1</span> El recibo de luz</h2>
+    <p class="hint">Arrastra o elige el recibo (PDF, foto o Excel). Yo leo los números solo.</p>
+
+    <div class="drop" id="drop">📄 Toca aquí para elegir el recibo<br>o arrástralo</div>
+    <input type="file" id="fileRecibo" accept=".pdf,.png,.jpg,.jpeg,.xlsx,.xls,image/*">
+
+    <div class="ocr-status" id="ocrStatus"></div>
+
+    <label>Total del recibo (S/)</label>
+    <input id="recibo" type="number" inputmode="decimal" placeholder="0.00">
+    <label>Energía Activa (S/)</label>
+    <input id="energia" type="number" inputmode="decimal" placeholder="0.00">
+    <label>Consumo total del recibo (kWh)</label>
+    <input id="consumoTotal" type="number" inputmode="decimal" placeholder="0">
+    <p class="hint" style="margin-top:14px">Revisa que estos 3 números estén bien. Corrige si hace falta.</p>
+  </div>
+
+  <!-- PASO 2: MEDIDOR AHORA -->
+  <div class="step">
+    <h2><span class="num">2</span> Medidor 2do piso (ahora)</h2>
+    <p class="hint">Sube la foto o el PDF del medidor. La app lee el número sola; revísalo con la imagen y corrige si hace falta.</p>
+    <button class="file-btn" onclick="document.getElementById('fotoActual').click()">📷 Subir foto o PDF del medidor</button>
+    <input type="file" id="fotoActual" accept="image/*,.pdf">
+    <div class="preview" id="prevActual"></div>
+    <label>Lectura de ahora</label>
+    <input id="actual" type="number" inputmode="decimal" placeholder="0.0">
+  </div>
+
+  <!-- PASO 3: MEDIDOR MES PASADO -->
+  <div class="step">
+    <h2><span class="num">3</span> Medidor 2do piso (mes pasado)</h2>
+    <p class="hint">Sube la foto o el PDF del medidor del mes pasado. La app lee el número sola; revísalo y corrige si hace falta.</p>
+    <button class="file-btn" onclick="document.getElementById('fotoAnterior').click()">📷 Subir foto o PDF del medidor</button>
+    <input type="file" id="fotoAnterior" accept="image/*,.pdf">
+    <div class="preview" id="prevAnterior"></div>
+    <label>Lectura del mes pasado</label>
+    <input id="anterior" type="number" inputmode="decimal" placeholder="0.0">
+  </div>
+
+  <!-- PASO 4: PERSONAS -->
+  <div class="step">
+    <h2><span class="num">4</span> Personas del 3er piso</h2>
+    <p class="hint">¿Cuántas personas viven en el 3er piso?</p>
+    <label>Personas</label>
+    <input id="personas" type="number" inputmode="numeric" placeholder="0">
+  </div>
+
+  <button class="btn" onclick="calcular()">CALCULAR</button>
+  <button class="btn btn-clear" onclick="limpiar()">Borrar todo</button>
+
+  <div class="err" id="error"></div>
+
+  <!-- RESULTADO -->
+  <div class="result" id="resultado">
+    <div class="step">
+      <h2>Lo que paga cada uno</h2>
+      <div class="pago">
+        <div class="nombre">2do Piso B</div>
+        <div class="monto" id="pago2">S/ 0.00</div>
+      </div>
+      <div class="pago">
+        <div class="nombre">3er Piso</div>
+        <div class="monto" id="pago3">S/ 0.00</div>
+        <div class="extra" id="porpersona">Por persona: S/ 0.00</div>
+      </div>
+      <div class="total-line">Suma de ambos: <b id="suma">S/ 0.00</b></div>
+
+      <details open>
+        <summary>Ver detalle</summary>
+        <table class="mini" id="detalle"></table>
+      </details>
+
+      <button class="btn btn-pdf" onclick="descargarPDF()">⬇️ Descargar PDF</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+let ultimoCalculo = null;
+
+function n(id){ const v = parseFloat(document.getElementById(id).value); return isNaN(v)?null:v; }
+function s(x){ return 'S/ ' + x.toFixed(2); }
+function setStatus(t, show=true){ const e=document.getElementById('ocrStatus'); e.textContent=t; e.classList.toggle('show',show); }
+
+/* ---------- Cargar recibo (PDF / imagen / Excel) ---------- */
+const drop = document.getElementById('drop');
+const fileRecibo = document.getElementById('fileRecibo');
+drop.addEventListener('click', ()=> fileRecibo.click());
+drop.addEventListener('dragover', e=>{e.preventDefault(); drop.classList.add('drag');});
+drop.addEventListener('dragleave', ()=> drop.classList.remove('drag'));
+drop.addEventListener('drop', e=>{
+  e.preventDefault(); drop.classList.remove('drag');
+  if(e.dataTransfer.files.length) procesarRecibo(e.dataTransfer.files[0]);
+});
+fileRecibo.addEventListener('change', e=>{ if(e.target.files.length) procesarRecibo(e.target.files[0]); });
+
+async function procesarRecibo(file){
+  const name = file.name.toLowerCase();
+  const esExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+  const esPdf = name.endsWith('.pdf');
+
+  // Verificar que las librerías necesarias se cargaron
+  if(esExcel && typeof XLSX === 'undefined'){
+    setStatus('Esta vista no permite leer archivos. Abre la app desde su enlace de internet, o escribe los números a mano abajo.', true); return;
+  }
+  if(!esExcel && typeof Tesseract === 'undefined'){
+    setStatus('La lectura automática no está disponible aquí (vista previa sin internet). Abre la app desde su enlace de internet, o escribe los números a mano abajo.', true); return;
+  }
+  if(esPdf && typeof pdfjsLib === 'undefined'){
+    setStatus('No puedo abrir PDFs en esta vista. Abre la app desde su enlace de internet, o escribe los números a mano abajo.', true); return;
+  }
+
+  try{
+    if(esExcel){
+      await leerExcel(file);
+    } else if(esPdf){
+      setStatus('Leyendo el PDF...');
+      const img = await pdfAImagen(file);
+      await ocrImagen(img);
+    } else {
+      setStatus('Leyendo la foto del recibo...');
+      const url = URL.createObjectURL(file);
+      await ocrImagen(url);
+    }
+  }catch(err){
+    setStatus('No pude leer el archivo automáticamente. Por favor escribe los 3 números a mano abajo.', true);
+  }
+}
+
+async function pdfAImagen(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({scale:2});
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width; canvas.height = viewport.height;
+  await page.render({canvasContext:canvas.getContext('2d'), viewport}).promise;
+  return canvas.toDataURL('image/png');
+}
+
+async function ocrImagen(src){
+  setStatus('Preparando la foto...');
+  let entrada = src;
+  try { entrada = await mejorarImagen(src); } catch(e) { /* si falla, usa original */ }
+  setStatus('Leyendo los números... espera un momento.');
+  const { data } = await Tesseract.recognize(entrada, 'spa', {
+    logger: m => { if(m.status==='recognizing text') setStatus('Leyendo... '+Math.round(m.progress*100)+'%'); }
+  });
+  const leidos = extraerCampos(data.text);
+  marcarCampos(leidos);
+  const faltan = ['recibo','energia','consumoTotal'].filter(id=>!leidos[id]);
+  if(faltan.length===0){
+    setStatus('Leí los 3 números (en verde). Revísalos y corrige si alguno está mal.', true);
+  } else {
+    setStatus('Leí lo que pude. Los casilleros en amarillo no los pude leer: escríbelos mirando tu recibo.', true);
+  }
+}
+
+/* Mejora la foto para el OCR: gris, más grande y con más contraste. */
+function mejorarImagen(src){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const escala = Math.min(2200 / img.width, 2.5);
+      const w = Math.round(img.width * Math.max(escala,1));
+      const h = Math.round(img.height * Math.max(escala,1));
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const d = ctx.getImageData(0,0,w,h);
+      const px = d.data;
+      for(let i=0;i<px.length;i+=4){
+        let g = 0.3*px[i] + 0.59*px[i+1] + 0.11*px[i+2];
+        g = (g - 128) * 1.6 + 128;          // más contraste
+        g = g < 0 ? 0 : g > 255 ? 255 : g;
+        px[i]=px[i+1]=px[i+2]=g;
+      }
+      ctx.putImageData(d,0,0);
+      resolve(cv.toDataURL('image/png'));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+/* Pinta de verde lo que se leyó y de amarillo lo que falta. */
+function marcarCampos(leidos){
+  [['recibo'],['energia'],['consumoTotal']].forEach(([id])=>{
+    const el = document.getElementById(id);
+    el.style.borderColor = leidos[id] ? '#1a5c38' : '#e0a800';
+    el.style.background  = leidos[id] ? '#eef7f1' : '#fffae6';
+  });
+}
+
+/* Lectura afinada para recibos de Ensa (Electricidad del Norte S.A.).
+   El OCR a veces confunde puntos/comas y junta palabras, así que cada
+   campo se intenta con varios patrones de respaldo. */
+function extraerCampos(texto){
+  // Normalizar: comas a puntos, espacios múltiples a uno solo
+  const t = texto.replace(/,/g,'.').replace(/[ \t]+/g,' ');
+  const num = (re)=>{ const m = t.match(re); return m ? parseFloat(m[1]) : null; };
+
+  // TOTAL A PAGAR — en Ensa aparece como "TOTAL A PAGAR S/ ******127.60"
+  // o "TOTAL RECIBO DE MAYO-2026 ... 127.60". Tomamos el número tras asteriscos o S/.
+  let total =
+    num(/total a pagar[^\d]*?s\/?[^\d]*?\*{0,8}\s*(\d{1,4}\.\d{2})/i) ||
+    num(/total recibo[^\n]*?(\d{1,4}\.\d{2})/i) ||
+    num(/total a pagar[^\d]*?(\d{1,4}\.\d{2})/i);
+
+  // ENE. ACTIVA — "Ene.Activa(S/.0.6732 x 141.0000 kWh) 94.92"
+  // El valor que queremos es el del IMPORTE (último número de la línea), no el precio unitario.
+  let energia =
+    num(/ene\.?\s*activa[^\n]*?(\d{1,4}\.\d{2})\s*(?:\n|$)/i) ||
+    num(/ene\.?\s*activa.*?kwh\)\s*(\d{1,4}\.\d{2})/i) ||
+    num(/energ[ií]a\s*activa[^\n]*?(\d{1,4}\.\d{2})/i);
+
+  // CONSUMO (kWh) — "Consumo 141.00 kWh" o "Diferencia de Lectura 141.00"
+  let consumo =
+    num(/consumo[^\n]*?(\d{1,4}(?:\.\d+)?)\s*kwh/i) ||
+    num(/diferencia de lectura[^\d]*?(\d{1,4}(?:\.\d+)?)/i) ||
+    num(/\bconsumo\b[^\d]*?(\d{1,4}(?:\.\d+)?)/i);
+
+  if(total!==null)   document.getElementById('recibo').value = total;
+  if(energia!==null) document.getElementById('energia').value = energia;
+  if(consumo!==null) document.getElementById('consumoTotal').value = Math.round(consumo);
+
+  return { recibo: total!==null, energia: energia!==null, consumoTotal: consumo!==null };
+}
+
+async function leerExcel(file){
+  setStatus('Leyendo el Excel...');
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, {type:'array'});
+  let hojas = wb.SheetNames.filter(h=> !/instruc|plantilla/i.test(h));
+  let usada = hojas.length ? hojas[hojas.length-1] : wb.SheetNames[0];
+  const ws = wb.Sheets[usada];
+  const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+  const buscar = (etq)=>{
+    for(const r of rows){ if(!r) continue;
+      for(let i=0;i<r.length;i++){
+        if(typeof r[i]==='string' && etq.test(r[i])){
+          for(let j=i+1;j<r.length;j++){ if(typeof r[j]==='number') return r[j]; }
+        }
+      }
+    } return null;
+  };
+  const recibo = buscar(/recibo/i);
+  const energia = buscar(/ene\.? activa|energ/i);
+  const consumo = buscar(/consumo/i);
+  if(recibo!==null) document.getElementById('recibo').value = Math.round(recibo*100)/100;
+  if(energia!==null) document.getElementById('energia').value = Math.round(energia*100)/100;
+  if(consumo!==null) document.getElementById('consumoTotal').value = consumo;
+  marcarCampos({recibo: recibo!==null, energia: energia!==null, consumoTotal: consumo!==null});
+  setStatus('Listo, leí el Excel ('+usada+'). Revisa los números.', true);
+}
+
+/* ---------- Fotos/PDF del medidor: intenta leer; si no puede, queda manual ---------- */
+function montarFoto(inputId, prevId, campoId){
+  document.getElementById(inputId).addEventListener('change', async e=>{
+    if(!e.target.files.length) return;
+    const file = e.target.files[0];
+    const cont = document.getElementById(prevId);
+    let imgURL = null;
+
+    if(file.name.toLowerCase().endsWith('.pdf')){
+      cont.innerHTML = '<div class="medidor-msg" style="font-size:15px;color:#1a5c38;background:#e8f3ec;border-radius:10px;padding:10px;">Abriendo el PDF...</div>';
+      try{
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({scale:2.5});
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width; canvas.height = viewport.height;
+        await page.render({canvasContext:canvas.getContext('2d'), viewport}).promise;
+        imgURL = canvas.toDataURL('image/png');
+      }catch(err){
+        cont.innerHTML = '<div class="medidor-msg" style="font-size:15px;color:#a12121;background:#fdecec;border-radius:10px;padding:10px;">No pude abrir el PDF. Pide la imagen como foto, o escribe el número a mano.</div>';
+        return;
+      }
+    } else {
+      imgURL = URL.createObjectURL(file);
+    }
+
+    // Mostrar la imagen grande para que ella lea y escriba el número
+    cont.innerHTML = '<img src="'+imgURL+'" alt="medidor">' +
+      '<div class="medidor-msg" style="font-size:15px;color:#1a5c38;background:#e8f3ec;border-radius:10px;padding:10px;margin-top:10px;">Mira el número en la imagen y escríbelo en el casillero de abajo. 👇</div>';
+  });
+}
+
+montarFoto('fotoActual','prevActual','actual');
+montarFoto('fotoAnterior','prevAnterior','anterior');
+
+/* Al escribir el número del medidor, el casillero se pone verde */
+['actual','anterior'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const el = e.target;
+    if(el.value !== ''){ el.style.borderColor='#1a5c38'; el.style.background='#eef7f1'; }
+    else { el.style.borderColor='#cfd8d3'; el.style.background='#fbfdfc'; }
+  });
+});
+
+/* Al escribir a mano en un campo del recibo, se pone verde */
+['recibo','energia','consumoTotal'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    const el = e.target;
+    if(el.value !== ''){ el.style.borderColor='#1a5c38'; el.style.background='#eef7f1'; }
+    else { el.style.borderColor='#cfd8d3'; el.style.background='#fbfdfc'; }
+  });
+});
+
+/* ---------- Cálculo (idéntico al Excel) ---------- */
+function calcular(){
+  const err = document.getElementById('error');
+  const res = document.getElementById('resultado');
+  err.classList.remove('show'); res.classList.remove('show');
+
+  const recibo=n('recibo'), energia=n('energia'), consumoTotal=n('consumoTotal');
+  const actual=n('actual'), anterior=n('anterior'), personas=n('personas');
+
+  if([recibo,energia,consumoTotal,actual,anterior,personas].some(v=>v===null)){
+    err.textContent='Por favor llena todos los casilleros.'; err.classList.add('show'); return;
+  }
+  if(personas<1){ err.textContent='Las personas del 3er piso deben ser 1 o más.'; err.classList.add('show'); return; }
+  if(consumoTotal<=0){ err.textContent='El consumo total debe ser mayor que cero.'; err.classList.add('show'); return; }
+  if(actual<anterior){ err.textContent='La lectura de ahora no puede ser menor que la del mes pasado.'; err.classList.add('show'); return; }
+  if(energia>recibo){ err.textContent='La Energía Activa no puede ser mayor que el total del recibo.'; err.classList.add('show'); return; }
+
+  const fijoCadaUno = (recibo - energia) / 2;
+  const consumo2 = actual - anterior;
+  let pct2 = consumo2 / consumoTotal; if(pct2>1) pct2=1;
+  const pct3 = 1 - pct2;
+  const energia2 = energia*pct2, energia3 = energia*pct3;
+  const total2 = Math.round((energia2+fijoCadaUno)*100)/100;
+  const total3 = Math.round((energia3+fijoCadaUno)*100)/100;
+  const porPersona = Math.round((total3/personas)*100)/100;
+
+  ultimoCalculo = {recibo,energia,consumoTotal,actual,anterior,personas,
+    fijoCadaUno,consumo2,pct2,pct3,energia2,energia3,total2,total3,porPersona,fecha:new Date()};
+
+  document.getElementById('pago2').textContent = s(total2);
+  document.getElementById('pago3').textContent = s(total3);
+  document.getElementById('porpersona').textContent = 'Por persona: '+s(porPersona);
+  document.getElementById('suma').textContent = s(total2+total3);
+  document.getElementById('detalle').innerHTML =
+    fila('Energía 2do Piso', s(energia2))+
+    fila('Energía 3er Piso', s(energia3))+
+    fila('Costos fijos (cada uno)', s(fijoCadaUno))+
+    fila('Consumo 2do Piso (kWh)', consumo2.toFixed(1))+
+    fila('Porcentaje 2do Piso', (pct2*100).toFixed(1)+'%')+
+    fila('Porcentaje 3er Piso', (pct3*100).toFixed(1)+'%');
+
+  res.classList.add('show');
+  res.scrollIntoView({behavior:'smooth'});
+}
+function fila(a,b){ return '<tr><td>'+a+'</td><td>'+b+'</td></tr>'; }
+
+/* ---------- PDF ---------- */
+function descargarPDF(){
+  if(!ultimoCalculo){ return; }
+  const c = ultimoCalculo;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const verde = [26,92,56];
+  let y;
+  doc.setFillColor(verde[0],verde[1],verde[2]); doc.rect(0,0,210,28,'F');
+  doc.setTextColor(255); doc.setFontSize(20); doc.setFont(undefined,'bold');
+  doc.text('Cálculo de Luz', 14, 14);
+  doc.setFontSize(12); doc.setFont(undefined,'normal');
+  doc.text('Los Maestros 134', 14, 22);
+
+  const fechaStr = c.fecha.toLocaleDateString('es-PE');
+  doc.setTextColor(60); doc.setFontSize(11);
+  y = 38; doc.text('Fecha del cálculo: '+fechaStr, 14, y);
+
+  doc.setTextColor(verde[0],verde[1],verde[2]); doc.setFontSize(15); doc.setFont(undefined,'bold');
+  y += 12; doc.text('Lo que paga cada uno', 14, y);
+
+  doc.setTextColor(20); doc.setFont(undefined,'normal'); doc.setFontSize(13);
+  y += 10; doc.text('2do Piso B:', 16, y); doc.setFont(undefined,'bold'); doc.text('S/ '+c.total2.toFixed(2), 80, y);
+  doc.setFont(undefined,'normal');
+  y += 9; doc.text('3er Piso:', 16, y); doc.setFont(undefined,'bold'); doc.text('S/ '+c.total3.toFixed(2), 80, y);
+  doc.setFont(undefined,'normal'); doc.setFontSize(11);
+  y += 7; doc.text('   Por persona (3er piso): S/ '+c.porPersona.toFixed(2)+'  ('+c.personas+' personas)', 16, y);
+  doc.setFontSize(13);
+  y += 9; doc.text('Suma de ambos:', 16, y); doc.setFont(undefined,'bold'); doc.text('S/ '+(c.total2+c.total3).toFixed(2), 80, y);
+
+  doc.setDrawColor(200); doc.line(14, y+8, 196, y+8);
+
+  doc.setTextColor(verde[0],verde[1],verde[2]); doc.setFont(undefined,'bold'); doc.setFontSize(14);
+  y += 18; doc.text('Detalle', 14, y);
+  doc.setTextColor(40); doc.setFont(undefined,'normal'); doc.setFontSize(11);
+  const det = [
+    ['Total del recibo', 'S/ '+c.recibo.toFixed(2)],
+    ['Energía Activa', 'S/ '+c.energia.toFixed(2)],
+    ['Consumo total del recibo', c.consumoTotal+' kWh'],
+    ['Lectura medidor ahora', c.actual.toString()],
+    ['Lectura medidor mes pasado', c.anterior.toString()],
+    ['Consumo 2do Piso', c.consumo2.toFixed(1)+' kWh'],
+    ['Porcentaje 2do Piso', (c.pct2*100).toFixed(1)+' %'],
+    ['Energía 2do Piso', 'S/ '+c.energia2.toFixed(2)],
+    ['Energía 3er Piso', 'S/ '+c.energia3.toFixed(2)],
+    ['Costos fijos (cada uno)', 'S/ '+c.fijoCadaUno.toFixed(2)],
+  ];
+  y += 8;
+  det.forEach(r=>{ doc.text(r[0], 16, y); doc.text(r[1], 130, y); y += 7; });
+
+  doc.setTextColor(120); doc.setFontSize(9);
+  doc.text('Generado con la app de cálculo de luz - Los Maestros 134', 14, 285);
+
+  doc.save('Calculo_Luz_'+fechaStr.replace(/\//g,'-')+'.pdf');
+}
+
+function limpiar(){
+  ['recibo','energia','consumoTotal','actual','anterior','personas'].forEach(id=> document.getElementById(id).value='');
+  ['recibo','energia','consumoTotal'].forEach(id=>{
+    const el=document.getElementById(id); el.style.borderColor='#cfd8d3'; el.style.background='#fbfdfc';
+  });
+  document.getElementById('prevActual').innerHTML='';
+  document.getElementById('prevAnterior').innerHTML='';
+  document.getElementById('resultado').classList.remove('show');
+  document.getElementById('error').classList.remove('show');
+  setStatus('', false);
+  ultimoCalculo=null;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
